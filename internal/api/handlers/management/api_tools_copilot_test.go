@@ -13,6 +13,14 @@ import (
 	coreauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 )
 
+type copilotQuotaStorage struct{}
+
+func (copilotQuotaStorage) RawJSON() []byte {
+	return []byte(`{"type":"copilot","github_access_token":" github-token "}`)
+}
+
+func (copilotQuotaStorage) SaveTokenToFile(string) error { return nil }
+
 func TestAPICallUsesCopilotPluginGitHubToken(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer github-token" {
@@ -22,7 +30,7 @@ func TestAPICallUsesCopilotPluginGitHubToken(t *testing.T) {
 	}))
 	defer upstream.Close()
 	manager := coreauth.NewManager(nil, &coreauth.RoundRobinSelector{}, nil)
-	auth := &coreauth.Auth{ID: "copilot-test.json", Provider: "copilot", Metadata: map[string]any{"github_access_token": " github-token "}}
+	auth := &coreauth.Auth{ID: "copilot-test.json", Provider: "copilot", Metadata: map[string]any{"github_login": "test"}, Storage: copilotQuotaStorage{}}
 	if _, err := manager.Register(context.Background(), auth); err != nil {
 		t.Fatal(err)
 	}

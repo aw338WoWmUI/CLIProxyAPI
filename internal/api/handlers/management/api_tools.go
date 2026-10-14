@@ -267,6 +267,12 @@ func tokenValueForAuth(auth *coreauth.Auth) string {
 			return v
 		}
 	}
+	if storage, ok := auth.Storage.(interface{ RawJSON() []byte }); ok {
+		var metadata map[string]any
+		if json.Unmarshal(storage.RawJSON(), &metadata) == nil {
+			return tokenValueFromMetadata(metadata)
+		}
+	}
 	return ""
 }
 
