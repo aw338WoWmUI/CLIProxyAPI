@@ -267,6 +267,12 @@ func tokenValueForAuth(auth *coreauth.Auth) string {
 			return v
 		}
 	}
+	if storage, ok := auth.Storage.(interface{ RawJSON() []byte }); ok {
+		var metadata map[string]any
+		if json.Unmarshal(storage.RawJSON(), &metadata) == nil {
+			return tokenValueFromMetadata(metadata)
+		}
+	}
 	return ""
 }
 
@@ -774,6 +780,9 @@ func tokenValueFromMetadata(metadata map[string]any) string {
 		return strings.TrimSpace(v)
 	}
 	if v, ok := metadata["access_token"].(string); ok && strings.TrimSpace(v) != "" {
+		return strings.TrimSpace(v)
+	}
+	if v, ok := metadata["github_access_token"].(string); ok && strings.TrimSpace(v) != "" {
 		return strings.TrimSpace(v)
 	}
 	if tokenRaw, ok := metadata["token"]; ok && tokenRaw != nil {
