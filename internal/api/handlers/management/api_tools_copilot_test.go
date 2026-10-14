@@ -37,12 +37,23 @@ func TestAPICallUsesCopilotPluginGitHubToken(t *testing.T) {
 	h := &Handler{cfg: &config.Config{}, authManager: manager}
 	router := gin.New()
 	router.POST("/", h.APICall)
+	router.POST("/v8", func(c *gin.Context) {
+		c.Set(ConfigV8ContextKey, true)
+		h.APICall(c)
+	})
 	body, _ := json.Marshal(map[string]any{
 		"method": "GET", "url": upstream.URL, "auth_index": auth.EnsureIndex(),
 		"header": map[string]string{"Authorization": "Bearer $TOKEN$"},
 	})
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("legacy management status = %d, want 400", recorder.Code)
+	}
+	recorder = httptest.NewRecorder()
+	req = httptest.NewRequest(http.MethodPost, "/v8", strings.NewReader(string(body)))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(recorder, req)
 	if recorder.Code != http.StatusOK {
