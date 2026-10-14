@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
@@ -17,6 +18,9 @@ import (
 )
 
 func TestAntigravityExecutorExecuteStreamTranslatesInteractionsRequest(t *testing.T) {
+	modelRegistry := registry.GetGlobalRegistry()
+	modelRegistry.RegisterClient(t.Name(), "antigravity", []*registry.ModelInfo{{ID: "gemini-3.1-pro-low", Thinking: &registry.ThinkingSupport{Levels: []string{"low", "high"}}}})
+	t.Cleanup(func() { modelRegistry.UnregisterClient(t.Name()) })
 	var upstreamBody []byte
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1internal:streamGenerateContent" {
