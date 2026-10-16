@@ -149,9 +149,6 @@ func (h *Handler) APICall(c *gin.Context) {
 	resolveToken := func() error {
 		if !tokenResolved {
 			token, tokenErr = h.resolveTokenForAuth(c.Request.Context(), auth, requestProxyURL)
-			if token == "" && tokenErr == nil && c.GetBool(ConfigV8ContextKey) {
-				token = pluginTokenValueForAuth(auth)
-			}
 			tokenResolved = true
 		}
 		if token == "" {
@@ -268,22 +265,6 @@ func tokenValueForAuth(auth *coreauth.Auth) string {
 		}
 		if v := strings.TrimSpace(auth.Attributes["session_token"]); v != "" {
 			return v
-		}
-	}
-	return ""
-}
-
-func pluginTokenValueForAuth(auth *coreauth.Auth) string {
-	if auth == nil {
-		return ""
-	}
-	if token := stringValue(auth.Metadata, "github_access_token"); token != "" {
-		return token
-	}
-	if storage, ok := auth.Storage.(interface{ RawJSON() []byte }); ok {
-		var metadata map[string]any
-		if json.Unmarshal(storage.RawJSON(), &metadata) == nil {
-			return firstNonEmpty(tokenValueFromMetadata(metadata), stringValue(metadata, "github_access_token"))
 		}
 	}
 	return ""
