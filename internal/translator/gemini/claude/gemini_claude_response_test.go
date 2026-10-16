@@ -1095,7 +1095,7 @@ func geminiClaudeInputJSONDeltas(t *testing.T, streamText string) string {
 }
 
 func TestConvertGeminiResponseToClaude_SanitizesParameterlessToolArguments(t *testing.T) {
-	origRequest := []byte(`{"model":"gemini-3-flash","tools":[{"name":"EnterPlanMode","input_schema":{"type":"object","properties":{}}}]}`)
+	origRequest := []byte(`{"model":"gemini-3-flash","tools":[{"name":"EnterPlanMode","input_schema":{"type":"object","properties":{},"additionalProperties":false}}]}`)
 	rawResponse := []byte(`{"candidates":[{"content":{"parts":[{"functionCall":{"name":"EnterPlanMode","args":{"reason":"Plan mode switch"}}}],"role":"model"},"finishReason":"STOP"}],"modelVersion":"gemini-3-flash","responseId":"resp-zero-arg"}`)
 
 	ctx := context.Background()
@@ -1113,7 +1113,7 @@ func TestConvertGeminiResponseToClaude_SanitizesParameterlessToolArguments(t *te
 }
 
 func TestConvertGeminiResponseToClaude_CanonicalNameCollisionKeepsExactToolArguments(t *testing.T) {
-	origRequest := []byte(`{"model":"gemini-3-flash","tools":[{"name":"Read","input_schema":{"type":"object","properties":{}}},{"name":"read","input_schema":{"type":"object","properties":{"path":{"type":"string"}}}}]}`)
+	origRequest := []byte(`{"model":"gemini-3-flash","tools":[{"name":"Read","input_schema":{"type":"object","properties":{},"additionalProperties":false}},{"name":"read","input_schema":{"type":"object","properties":{"path":{"type":"string"}}}}]}`)
 	readWithArgs := []byte(`{"candidates":[{"content":{"parts":[{"functionCall":{"name":"read","args":{"path":"/tmp/a"}}}],"role":"model"},"finishReason":"STOP"}],"modelVersion":"gemini-3-flash","responseId":"resp-collision"}`)
 	readParameterless := []byte(`{"candidates":[{"content":{"parts":[{"functionCall":{"name":"Read","args":{"reason":"x"}}}],"role":"model"},"finishReason":"STOP"}],"modelVersion":"gemini-3-flash","responseId":"resp-collision-2"}`)
 
@@ -1140,7 +1140,7 @@ func TestConvertGeminiResponseToClaude_CanonicalNameCollisionKeepsExactToolArgum
 }
 
 func TestConvertGeminiResponseToClaude_AmbiguousCanonicalNameKeepsUpstreamNameAndArguments(t *testing.T) {
-	origRequest := []byte(`{"model":"gemini-3-flash","tools":[{"name":"Read","input_schema":{"type":"object","properties":{}}},{"name":"read","input_schema":{"type":"object","properties":{"path":{"type":"string"}}}}]}`)
+	origRequest := []byte(`{"model":"gemini-3-flash","tools":[{"name":"Read","input_schema":{"type":"object","properties":{},"additionalProperties":false}},{"name":"read","input_schema":{"type":"object","properties":{"path":{"type":"string"}}}}]}`)
 	ambiguousResponse := []byte(`{"candidates":[{"content":{"parts":[{"functionCall":{"name":"READ","args":{"path":"/tmp/a"}}}],"role":"model"},"finishReason":"STOP"}],"modelVersion":"gemini-3-flash","responseId":"resp-ambiguous"}`)
 
 	nonStream := ConvertGeminiResponseToClaudeNonStream(context.Background(), "gemini-3-flash", origRequest, origRequest, ambiguousResponse, nil)
@@ -1168,7 +1168,7 @@ func TestConvertGeminiResponseToClaude_KeepsReasonWhenTranslatedSchemaHasNoPlace
 }
 
 func TestConvertGeminiResponseToClaude_ParameterlessToolContinuationDoesNotDuplicateEmptyObject(t *testing.T) {
-	origRequest := []byte(`{"model":"gemini-3-flash","tools":[{"name":"EnterPlanMode","input_schema":{"type":"object","properties":{}}}]}`)
+	origRequest := []byte(`{"model":"gemini-3-flash","tools":[{"name":"EnterPlanMode","input_schema":{"type":"object","properties":{},"additionalProperties":false}}]}`)
 	firstChunk := []byte(`{"candidates":[{"content":{"parts":[{"functionCall":{"name":"EnterPlanMode","args":{"reason":"Plan mode switch"}}}],"role":"model"}}],"modelVersion":"gemini-3-flash","responseId":"resp-zero-arg"}`)
 	continuationChunk := []byte(`{"candidates":[{"content":{"parts":[{"functionCall":{"args":{"reason":"more"}}}],"role":"model"},"finishReason":"STOP"}],"modelVersion":"gemini-3-flash","responseId":"resp-zero-arg"}`)
 

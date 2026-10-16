@@ -584,12 +584,12 @@ func applyDevinQuotaRestoration(auth, existing *Auth, now time.Time) bool {
 		}
 		reason := strings.TrimSpace(state.Quota.Reason)
 		wrapped := state.credentialQuotaPropagated || reason == "credential_quota"
-		if !state.Quota.Exceeded || (reason != "quota" && !wrapped) {
+		if !state.Quota.Exceeded || (!wrapped && (reason != "quota" || !isDevinQuotaExhaustionMessage(devinStateErrorText(state)))) {
 			continue
 		}
 		// A wrapped sibling carries its independent layer in the shadow.
 		// Reinstate that exact block (if still live) instead of erasing it;
-		// the reporting model ("quota" unwrapped) and pure propagation
+		// the credential-derived reporting model and pure propagation
 		// targets (no shadow) fully release. Deadline or status heuristics
 		// cannot recover this provenance reliably.
 		if shadow := state.credentialQuotaShadow; shadow != nil && isModelStateActiveCooldown(shadow, now) {

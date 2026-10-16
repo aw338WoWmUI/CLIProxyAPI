@@ -550,7 +550,7 @@ func claudeSchemaAllowsDynamic(schema gjson.Result) bool {
 		return true
 	}
 	additionalProperties := schema.Get("additionalProperties")
-	if additionalProperties.Exists() && additionalProperties.Type != gjson.False {
+	if !additionalProperties.Exists() || additionalProperties.Type != gjson.False {
 		return true
 	}
 	return false
@@ -916,7 +916,8 @@ func findClaudeToolSchema(originalRequestRawJSON []byte, toolName string) (gjson
 // Claude request with an empty or missing object schema. Such tools had a placeholder
 // "reason" property injected for Gemini/Antigravity schema validation, so any returned
 // arguments must be normalized to "{}" before they reach the Claude client. Schemas that
-// allow dynamic additional or pattern properties are never parameterless.
+// allow dynamic additional or pattern properties are never parameterless; omitted
+// additionalProperties permits arbitrary keys under JSON Schema.
 func ClaudeToolIsParameterless(toolName string, originalRequestRawJSON []byte) bool {
 	schema, root, found := findClaudeToolSchema(originalRequestRawJSON, toolName)
 	if !found {

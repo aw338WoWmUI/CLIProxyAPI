@@ -10226,3 +10226,12 @@ func TestClaudeExecutor_PayloadFilterRemovesPreservedThinkingInjection(t *testin
 		t.Fatalf("payload filter must remove injected block_binding: %s", seenBody)
 	}
 }
+
+func TestCurrentDateReminderOnlyStringHasNoEmptyTextBlock(t *testing.T) {
+	payload, _ := sjson.SetBytes([]byte(`{"messages":[{"role":"user","content":""}]}`), "messages.0.content", claudeCodeCurrentDateReminder("2026-08-01"))
+	out := injectClaudeCodeCurrentDate(stripFirstUserClaudeCodeCurrentDateReminder(payload), "2026-08-01")
+	blocks := gjson.GetBytes(out, "messages.0.content").Array()
+	if len(blocks) != 1 || blocks[0].Get("text").String() == "" {
+		t.Fatalf("expected only the canonical date block: %s", out)
+	}
+}

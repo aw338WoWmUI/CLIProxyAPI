@@ -49,7 +49,8 @@ func devinExhaustedAuth(t *testing.T, m *Manager, id, model, sibling string, rec
 	stored.ModelStates = map[string]*ModelState{
 		model: {
 			Status: StatusError, Unavailable: true, NextRetryAfter: recoverAt,
-			Quota: QuotaState{Exceeded: true, Reason: "quota", NextRecoverAt: recoverAt},
+			StatusMessage: "weekly quota exhausted",
+			Quota:         QuotaState{Exceeded: true, Reason: "quota", NextRecoverAt: recoverAt},
 		},
 		sibling: {
 			Status: StatusError, Unavailable: true, NextRetryAfter: recoverAt,
@@ -1254,5 +1255,19 @@ func TestDevinRefresh_RestoredKeepsUnrelatedModelCooldown(t *testing.T) {
 	}
 	if blocked, _, _ := isAuthBlockedForModel(stored, sibling, time.Now()); blocked {
 		t.Fatal("propagated sibling block must be released after quota restoration")
+	}
+}
+
+func TestDevinRestorationPreservesLegacyIndependentQuota(t *testing.T) {
+	now := time.Now()
+	until := now.Add(time.Hour)
+	existing := &Auth{Provider: "devin", UpdatedAt: now.Add(-time.Minute), Quota: QuotaState{Exceeded: true, Reason: "credential_quota", NextRecoverAt: until, ObservedAt: now.Add(-time.Hour)}}
+	state := &ModelState{Unavailable: true, NextRetryAfter: until, Quota: QuotaState{Exceeded: true, Reason: "quota", NextRecoverAt: until}, StatusMessage: "model rate limited"}
+	updated := &Auth{Quota: QuotaState{ObservedAt: now, Signals: map[string]string{"daily_quota_remaining_percent": "50%", "weekly_quota_remaining_percent": "50%"}}, ModelStates: map[string]*ModelState{"model": state}}
+	if !applyDevinQuotaRestoration(updated, existing, now) {
+		t.Fatal("credential should recover")
+	}
+	if !state.Unavailable || !state.NextRetryAfter.Equal(until) {
+		t.Fatal("independent model quota was cleared")
 	}
 }

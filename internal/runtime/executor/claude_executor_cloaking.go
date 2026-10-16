@@ -1384,7 +1384,13 @@ func stripFirstUserClaudeCodeCurrentDateReminder(payload []byte) []byte {
 	if stripped == content.String() {
 		return payload
 	}
-	updated, errSet := sjson.SetBytes(payload, contentPath, stripped)
+	var updated []byte
+	var errSet error
+	if stripped == "" {
+		updated, errSet = sjson.SetRawBytes(payload, contentPath, []byte("[]"))
+	} else {
+		updated, errSet = sjson.SetBytes(payload, contentPath, stripped)
+	}
 	if errSet != nil {
 		return payload
 	}

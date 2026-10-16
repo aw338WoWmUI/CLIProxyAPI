@@ -1619,7 +1619,7 @@ func TestConvertAntigravityResponseToClaudeStream_EmptyTextPartFollowedByThinkin
 }
 
 func TestConvertAntigravityResponseToClaude_SanitizesParameterlessToolArguments(t *testing.T) {
-	origRequest := []byte(`{"model":"claude-sonnet-4-6","tools":[{"name":"EnterPlanMode","input_schema":{"type":"object","properties":{}}}]}`)
+	origRequest := []byte(`{"model":"claude-sonnet-4-6","tools":[{"name":"EnterPlanMode","input_schema":{"type":"object","properties":{},"additionalProperties":false}}]}`)
 	translatedRequest := []byte(`{"model":"gemini-3.8-flash-high"}`)
 	responseJSON := []byte(`{"response":{"candidates":[{"content":{"parts":[{"functionCall":{"name":"EnterPlanMode","args":{"reason":"Switching to plan mode to inspect files"}}}]},"finishReason":"STOP"}],"modelVersion":"gemini-3.8-flash-high","responseId":"resp-1"}}`)
 
@@ -1660,7 +1660,7 @@ func TestConvertAntigravityResponseToClaude_StripsExecutorInjectedUnderscore(t *
 }
 
 func TestConvertAntigravityResponseToClaude_ParameterlessContinuationDoesNotDuplicateEmptyObject(t *testing.T) {
-	origRequest := []byte(`{"model":"claude-sonnet-4-6","tools":[{"name":"EnterPlanMode","input_schema":{"type":"object","properties":{}}}]}`)
+	origRequest := []byte(`{"model":"claude-sonnet-4-6","tools":[{"name":"EnterPlanMode","input_schema":{"type":"object","properties":{},"additionalProperties":false}}]}`)
 	translatedRequest := []byte(`{"model":"gemini-3.8-flash-high"}`)
 	firstChunk := []byte(`{"response":{"candidates":[{"content":{"parts":[{"functionCall":{"name":"EnterPlanMode","args":{"reason":"Switching to plan mode"}}}]}}],"modelVersion":"gemini-3.8-flash-high","responseId":"resp-1"}}`)
 	continuationChunk := []byte(`{"response":{"candidates":[{"content":{"parts":[{"functionCall":{"args":{"reason":"more"}}}]},"finishReason":"STOP"}],"modelVersion":"gemini-3.8-flash-high","responseId":"resp-1"}}`)
