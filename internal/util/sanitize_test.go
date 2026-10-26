@@ -563,13 +563,13 @@ func TestCleanClaudeToolArguments(t *testing.T) {
 		want        string
 		transferred []byte
 	}{
-		{"open schema preserves parameterless empty properties", `{"reason":"Entering plan mode"}`, "EnterPlanMode", origRequest, `{"reason":"Entering plan mode"}`, nil},
-		{"open schema preserves parameterless missing properties", `{"reason":"List jobs"}`, "CronList", origRequest, `{"reason":"List jobs"}`, nil},
+		{"parameterless empty properties", `{"reason":"Entering plan mode"}`, "EnterPlanMode", origRequest, "{}", nil},
+		{"parameterless missing properties", `{"reason":"List jobs"}`, "CronList", origRequest, "{}", nil},
 		{"declared args preserved", `{"command":"ls -la"}`, "Bash", origRequest, `{"command":"ls -la"}`, nil},
-		{"open schema preserves undeclared reason stripped", `{"command":"ls -la","reason":"why"}`, "Bash", origRequest, `{"command":"ls -la","reason":"why"}`, nil},
+		{"undeclared reason stripped", `{"command":"ls -la","reason":"why"}`, "Bash", origRequest, `{"command":"ls -la"}`, nil},
 		{"reason kept when translated schema lacks placeholder", `{"command":"ls -la","reason":"why"}`, "Bash", origRequest, `{"command":"ls -la","reason":"why"}`, transferredRequest},
-		{"open schema preserves reason stripped when translated schema marks placeholder", `{"command":"ls -la","reason":"why"}`, "Bash", origRequest, `{"command":"ls -la","reason":"why"}`, translatedReasonRequired},
-		{"open schema preserves undeclared underscore stripped", `{"command":"ls -la","_":true}`, "Bash", origRequest, `{"command":"ls -la","_":true}`, nil},
+		{"reason stripped when translated schema marks placeholder", `{"command":"ls -la","reason":"why"}`, "Bash", origRequest, `{"command":"ls -la"}`, translatedReasonRequired},
+		{"undeclared underscore stripped", `{"command":"ls -la","_":true}`, "Bash", origRequest, `{"command":"ls -la"}`, nil},
 		{"declared reason preserved", `{"reason":"valid"}`, "CustomToolWithReason", origRequest, `{"reason":"valid"}`, nil},
 		{"additional properties preserved", `{"name":"x","reason":"dynamic"}`, "DynamicTool", origRequest, `{"name":"x","reason":"dynamic"}`, nil},
 		{"union schema passthrough", `{"reason":"x"}`, "UnionTool", origRequest, `{"reason":"x"}`, nil},
@@ -579,28 +579,28 @@ func TestCleanClaudeToolArguments(t *testing.T) {
 		{"dynamic map tool preserved", `{"key":"value"}`, "MapTool", dynamicRequest, `{"key":"value"}`, nil},
 		{"typed map tool preserved", `{"key":"value"}`, "TypedMapTool", dynamicRequest, `{"key":"value"}`, nil},
 		{"case collision exact match keeps args", `{"path":"/tmp/a"}`, "read", caseCollisionRequest, `{"path":"/tmp/a"}`, nil},
-		{"open schema preserves case collision exact match parameterless", `{"reason":"x"}`, "Read", caseCollisionRequest, `{"reason":"x"}`, nil},
-		{"open schema preserves allOf empty normalized", `{"reason":"x"}`, "AllOfEmpty", composedRequest, `{"reason":"x"}`, nil},
+		{"case collision exact match parameterless", `{"reason":"x"}`, "Read", caseCollisionRequest, "{}", nil},
+		{"allOf empty normalized", `{"reason":"x"}`, "AllOfEmpty", composedRequest, "{}", nil},
 		{"allOf declared args preserved", `{"path":"/tmp/a"}`, "AllOfArgs", composedRequest, `{"path":"/tmp/a"}`, nil},
-		{"open schema preserves ref to empty normalized", `{"reason":"x"}`, "RefEmpty", composedRequest, `{"reason":"x"}`, nil},
-		{"open schema preserves nested placeholders stripped", `{"opts":{"reason":"x"},"cfg":{"mode":"fast","_":true}}`, "NestedTool", composedRequest, `{"opts":{"reason":"x"},"cfg":{"mode":"fast","_":true}}`, nil},
+		{"ref to empty normalized", `{"reason":"x"}`, "RefEmpty", composedRequest, "{}", nil},
+		{"nested placeholders stripped", `{"opts":{"reason":"x"},"cfg":{"mode":"fast","_":true}}`, "NestedTool", composedRequest, `{"opts":{},"cfg":{"mode":"fast"}}`, nil},
 		{"free-form nested preserved", `{"payload":{"value":1}}`, "FreeFormNested", deepRequest, `{"payload":{"value":1}}`, nil},
 		{"allOf deep merge keeps declared reason", `{"cfg":{"mode":"a","reason":"b"}}`, "AllOfMerge", deepRequest, `{"cfg":{"mode":"a","reason":"b"}}`, nil},
-		{"open schema preserves single union empty normalized", `{"reason":"x"}`, "SingleUnionEmpty", deepRequest, `{"reason":"x"}`, nil},
-		{"open schema preserves dynamic parent still cleans declared child", `{"extra":1,"opts":{"reason":"x"}}`, "DynamicParent", deepRequest, `{"extra":1,"opts":{"reason":"x"}}`, nil},
-		{"open schema preserves ref array items cleaned", `{"items":[{"v":"a","_":true}]}`, "RefArray", deepRequest, `{"items":[{"v":"a","_":true}]}`, nil},
-		{"open schema preserves property ref cleaned", `{"copy":{"reason":"x"},"template":{}}`, "PropRef", deepRequest, `{"copy":{"reason":"x"},"template":{}}`, nil},
+		{"single union empty normalized", `{"reason":"x"}`, "SingleUnionEmpty", deepRequest, "{}", nil},
+		{"dynamic parent still cleans declared child", `{"extra":1,"opts":{"reason":"x"}}`, "DynamicParent", deepRequest, `{"extra":1,"opts":{}}`, nil},
+		{"ref array items cleaned", `{"items":[{"v":"a","_":true}]}`, "RefArray", deepRequest, `{"items":[{"v":"a"}]}`, nil},
+		{"property ref cleaned", `{"copy":{"reason":"x"},"template":{}}`, "PropRef", deepRequest, `{"copy":{},"template":{}}`, nil},
 		{"allOf dynamic conflict uses translated schema", `{"reason":"x"}`, "AllOfDynamicConflict", extraRequest, "{}", translatedExtra},
 		{"multi-branch union uses translated schema", `{"reason":"x"}`, "MultiUnionEmpty", extraRequest, "{}", translatedExtra},
-		{"open schema preserves identical duplicates cleaned", `{"reason":"x"}`, "DupTool", extraRequest, `{"reason":"x"}`, nil},
+		{"identical duplicates cleaned", `{"reason":"x"}`, "DupTool", extraRequest, "{}", nil},
 		{"conflicting duplicates passthrough", `{"path":"/tmp/a"}`, "ConflictingDup", extraRequest, `{"path":"/tmp/a"}`, nil},
 		{"conflicting duplicates keep first-declared cleaning", `{"reason":"x"}`, "ConflictingDup", extraRequest, `{"reason":"x"}`, nil},
-		{"open schema preserves matrix nested arrays cleaned", `{"rows":[[{"reason":"x"}]]}`, "MatrixTool", extraRequest, `{"rows":[[{"reason":"x"}]]}`, translatedExtra},
+		{"matrix nested arrays cleaned", `{"rows":[[{"reason":"x"}]]}`, "MatrixTool", extraRequest, `{"rows":[[{}]]}`, translatedExtra},
 		{"union declared required reason preserved", `{"choice":{"reason":"maintenance"}}`, "UnionChoice", round4Request, `{"choice":{"reason":"maintenance"}}`, translatedRound4},
 		{"allOf child merge keeps mode", `{"cfg":{"mode":"fast"}}`, "AllOfChildMerge", round4Request, `{"cfg":{"mode":"fast"}}`, translatedRound4},
 		{"nested ref placeholder cleaned", `{"opts":{"reason":"initialize"}}`, "NestedRefTool", round4Request, `{"opts":{}}`, translatedRound4},
 		{"required-only reason preserved", `{"reason":"maintenance"}`, "Explain", round5Request, `{"reason":"maintenance"}`, translatedRound5},
-		{"open schema preserves union branch nested placeholder cleaned", `{"choice":{"opts":{"reason":"initialize"}}}`, "Choose", round5Request, `{"choice":{"opts":{"reason":"initialize"}}}`, translatedRound5},
+		{"union branch nested placeholder cleaned", `{"choice":{"opts":{"reason":"initialize"}}}`, "Choose", round5Request, `{"choice":{"opts":{}}}`, translatedRound5},
 		{"gemini route keeps dynamic underscore", `{"flag":"x","_":true}`, "Options", round5Request, `{"flag":"x","_":true}`, translatedRound5},
 		{"implicit additional properties keeps underscore", `{"flag":"x","_":true}`, "PlainOptions", round6Request, `{"flag":"x","_":true}`, translatedRound6},
 		{"closed object still strips executor underscore", `{"flag":"x","_":true}`, "StrictOptions", round6Request, `{"flag":"x"}`, translatedRound6},
@@ -611,9 +611,9 @@ func TestCleanClaudeToolArguments(t *testing.T) {
 		{"union branch pattern child preserved", `{"choice":{"cfg":{"mode":"fast","_":true}}}`, "ConfigureNested", round9Request, `{"choice":{"cfg":{"mode":"fast","_":true}}}`, translatedRound9},
 		{"implicit open branch child preserved", `{"choice":{"tag":"keep","cfg":{"mode":"fast","_":true}}}`, "ImplicitBranch", round10Request, `{"choice":{"tag":"keep","cfg":{"mode":"fast","_":true}}}`, translatedRound10},
 		{"implicit open branch field preserved", `{"choice":{"tag":"keep","reason":"business"}}`, "ChooseImplicit", round11Request, `{"choice":{"tag":"keep","reason":"business"}}`, translatedRound11},
-		{"open schema preserves implicit open branch non-matching object cleaned", `{"choice":{"reason":"x"}}`, "ChooseImplicit", round11Request, `{"choice":{"reason":"x"}}`, translatedRound11},
+		{"implicit open branch non-matching object cleaned", `{"choice":{"reason":"x"}}`, "ChooseImplicit", round11Request, `{"choice":{}}`, translatedRound11},
 		{"alternative child candidates keep matched data", `{"choice":{"cfg":{"mode":"fast","reason":"business"}}}`, "ConfigureAlt", round12Request, `{"choice":{"cfg":{"mode":"fast","reason":"business"}}}`, translatedRound12},
-		{"open schema preserves alternative child candidates clean unmatched placeholder", `{"choice":{"cfg":{"reason":"x"}}}`, "ConfigureAlt", round12Request, `{"choice":{"cfg":{"reason":"x"}}}`, translatedRound12},
+		{"alternative child candidates clean unmatched placeholder", `{"choice":{"cfg":{"reason":"x"}}}`, "ConfigureAlt", round12Request, `{"choice":{"cfg":{}}}`, translatedRound12},
 		{"deep alternative candidates keep matched subtree", `{"choice":{"cfg":{"tag":"keep","opts":{"mode":"fast","_":true}}}}`, "DeepAlt", round13Request, `{"choice":{"cfg":{"tag":"keep","opts":{"mode":"fast","_":true}}}}`, translatedRound13},
 		{"deep alternative candidates clean unmatched subtree", `{"choice":{"cfg":{"opts":{"mode":"fast","_":true}}}}`, "DeepAlt", round13Request, `{"choice":{"cfg":{"opts":{"mode":"fast"}}}}`, translatedRound13},
 		{"free-form alternative child preserved", `{"cfg":{"reason":"business","value":1}}`, "ConfigureAltFree", round14Request, `{"cfg":{"reason":"business","value":1}}`, translatedRound14},
@@ -645,15 +645,123 @@ func TestCleanClaudeToolArguments(t *testing.T) {
 	}
 }
 
-func TestCleanClaudeToolArgumentsOpenObjectPreservesArguments(t *testing.T) {
-	for _, schema := range []string{`{"type":"object"}`, `{"type":"object","properties":{}}`} {
-		request := []byte(`{"tools":[{"name":"Dynamic","input_schema":` + schema + `}]}`)
-		if ClaudeToolIsParameterless("Dynamic", request) {
-			t.Errorf("open schema is not parameterless: %s", schema)
+func TestCleanClaudeToolArguments_ImplicitOpenObjectPreservesArguments(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		schema     string
+		want       string
+		wantNoArgs bool
+	}{
+		{"additionalProperties_omitted", `{"type":"object","properties":{}}`, `{"user":"v"}`, false},
+		{"additionalProperties_omitted_no_properties", `{"type":"object"}`, `{"user":"v"}`, false},
+		{"additionalProperties_true", `{"type":"object","properties":{},"additionalProperties":true}`, `{"user":"v"}`, false},
+		{"additionalProperties_false", `{"type":"object","properties":{},"additionalProperties":false}`, `{}`, true},
+		{"additionalProperties_false_no_properties", `{"type":"object","additionalProperties":false}`, `{}`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			original := []byte(`{"tools":[{"name":"echo","input_schema":` + tc.schema + `}]}`)
+			cleanedSchema := CleanJSONSchemaForGeminiJSONSchema(tc.schema)
+			translated := []byte(`{"tools":[{"functionDeclarations":[{"name":"echo","parametersJsonSchema":` + cleanedSchema + `}]}]}`)
+			args := `{"user":"v"}`
+			direct := CleanClaudeToolArguments(args, "echo", original)
+			withTranslated := CleanClaudeToolArgumentsWithTranslated(args, "echo", original, translated)
+			noArgs := ClaudeToolIsParameterless("echo", original)
+			if direct != tc.want || withTranslated != tc.want || noArgs != tc.wantNoArgs {
+				t.Errorf("want direct/translated=%s parameterless=%v; got direct=%s translated=%s parameterless=%v",
+					tc.want, tc.wantNoArgs, direct, withTranslated, noArgs)
+			}
+		})
+	}
+
+	t.Run("implicit_open_strips_injected_placeholder_but_keeps_user_arg", func(t *testing.T) {
+		schema := `{"type":"object","properties":{}}`
+		original := []byte(`{"tools":[{"name":"echo","input_schema":` + schema + `}]}`)
+		antigravitySchema := CleanJSONSchemaForAntigravity(schema)
+		translated := []byte(`{"tools":[{"functionDeclarations":[{"name":"echo","parametersJsonSchema":` + antigravitySchema + `}]}]}`)
+		args := `{"user":"v","reason":"Brief explanation"}`
+		if got := CleanClaudeToolArguments(args, "echo", original); got != `{"user":"v"}` {
+			t.Errorf("CleanClaudeToolArguments = %s, want {\"user\":\"v\"}", got)
 		}
-		args := `{"path":"/tmp/work","reason":"user-owned"}`
-		if got := CleanClaudeToolArguments(args, "Dynamic", request); got != args {
-			t.Errorf("open schema arguments lost: %s", got)
+		if got := CleanClaudeToolArgumentsWithTranslated(args, "echo", original, translated); got != `{"user":"v"}` {
+			t.Errorf("CleanClaudeToolArgumentsWithTranslated = %s, want {\"user\":\"v\"}", got)
 		}
+	})
+
+	for _, tc := range []struct {
+		name       string
+		schema     string
+		args       string
+		want       string
+		wantNoArgs bool
+	}{
+		{
+			"nested_implicit_open_preserves_user_arg",
+			`{"type":"object","properties":{"opts":{"type":"object","properties":{}}}}`,
+			`{"opts":{"user":"v"}}`,
+			`{"opts":{"user":"v"}}`,
+			false,
+		},
+		{
+			"nested_explicit_closed_erases_user_arg",
+			`{"type":"object","properties":{"opts":{"type":"object","properties":{},"additionalProperties":false}}}`,
+			`{"opts":{"user":"v"}}`,
+			`{"opts":{}}`,
+			false,
+		},
+		{
+			"array_item_implicit_open_preserves_user_arg",
+			`{"type":"object","properties":{"items":{"type":"array","items":{"type":"object","properties":{}}}}}`,
+			`{"items":[{"user":"v"}]}`,
+			`{"items":[{"user":"v"}]}`,
+			false,
+		},
+		{
+			"array_item_explicit_closed_erases_user_arg",
+			`{"type":"object","properties":{"items":{"type":"array","items":{"type":"object","properties":{},"additionalProperties":false}}}}`,
+			`{"items":[{"user":"v"}]}`,
+			`{"items":[{}]}`,
+			false,
+		},
+		{
+			"allOf_implicit_open_preserves_user_arg",
+			`{"type":"object","allOf":[{"type":"object","properties":{}}]}`,
+			`{"user":"v"}`,
+			`{"user":"v"}`,
+			false,
+		},
+		{
+			"allOf_explicit_closed_erases_user_arg",
+			`{"type":"object","allOf":[{"type":"object","properties":{},"additionalProperties":false}]}`,
+			`{"user":"v"}`,
+			`{}`,
+			true,
+		},
+		{
+			"local_ref_implicit_open_preserves_user_arg",
+			`{"$ref":"#/$defs/open","$defs":{"open":{"type":"object","properties":{}}}}`,
+			`{"user":"v"}`,
+			`{"user":"v"}`,
+			false,
+		},
+		{
+			"local_ref_explicit_closed_erases_user_arg",
+			`{"$ref":"#/$defs/closed","$defs":{"closed":{"type":"object","properties":{},"additionalProperties":false}}}`,
+			`{"user":"v"}`,
+			`{}`,
+			true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			original := []byte(`{"tools":[{"name":"echo","input_schema":` + tc.schema + `}]}`)
+			cleanedSchema := CleanJSONSchemaForGeminiJSONSchema(tc.schema)
+			translated := []byte(`{"tools":[{"functionDeclarations":[{"name":"echo","parametersJsonSchema":` + cleanedSchema + `}]}]}`)
+			direct := CleanClaudeToolArguments(tc.args, "echo", original)
+			withTranslated := CleanClaudeToolArgumentsWithTranslated(tc.args, "echo", original, translated)
+			noArgs := ClaudeToolIsParameterless("echo", original)
+			if direct != tc.want || withTranslated != tc.want || noArgs != tc.wantNoArgs {
+				t.Errorf("want direct/translated=%s parameterless=%v; got direct=%s translated=%s parameterless=%v",
+					tc.want, tc.wantNoArgs, direct, withTranslated, noArgs)
+			}
+		})
 	}
 }
