@@ -227,9 +227,7 @@ func (c *Client) reportClusterLatency(ctx context.Context, history *clusterLaten
 		return fmt.Errorf("get Home latency command client: %w", errClient)
 	}
 	// Reuse the command pool; telemetry must never close dispatch transports on cancellation.
-	commandCtx, cancelCommand := context.WithTimeout(ctx, clusterLatencyTimeout)
-	raw, errReport := command.Do(commandCtx, "CLUSTER", "BALANCE", "LATENCY", string(payload)).Text()
-	cancelCommand()
+	raw, errReport := command.Do(ctx, "CLUSTER", "BALANCE", "LATENCY", string(payload)).Text()
 	if errReport != nil {
 		return fmt.Errorf("report Home latency: %w", errReport)
 	}
@@ -262,9 +260,7 @@ func (c *Client) reportClusterLatency(ctx context.Context, history *clusterLaten
 		return nil
 	}
 	address := clusterNodeAddress(target)
-	probeCtx, cancelProbe := context.WithTimeout(ctx, clusterLatencyTimeout)
-	rtt, errProbe := c.probeClusterLatency(probeCtx, address)
-	cancelProbe()
+	rtt, errProbe := c.probeClusterLatency(ctx, address)
 	history.observeProbe(target, rtt, errProbe == nil, reportAt, time.Now())
 	if errProbe != nil {
 		return fmt.Errorf("probe Home latency: %w", errProbe)

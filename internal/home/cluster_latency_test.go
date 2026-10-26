@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 )
 
@@ -239,5 +240,52 @@ func TestClusterLatencyCapabilityNegotiationAndIsolatedFailure(t *testing.T) {
 				t.Fatalf("telemetry changed liveness or failed to downgrade: reports=%d", reports)
 			}
 		})
+	}
+}
+
+type latencyContextHook struct {
+	observe func(context.Context, redis.Cmder)
+}
+
+func (h latencyContextHook) DialHook(next redis.DialHook) redis.DialHook { return next }
+func (h latencyContextHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return next
+}
+func (h latencyContextHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		h.observe(ctx, cmd)
+		return next(ctx, cmd)
+	}
+}
+
+func TestClusterLatencyReportUsesCallerLifetime(t *testing.T) {
+	client, _ := newRedisCommandTestClient(t, func(args []string) string {
+		if len(args) > 2 && args[2] == "LATENCY" {
+			return "$11\r\n{\"ok\":true}\r\n"
+		}
+		return balanceTestRedisReply(args)
+	})
+	enableBalanceTestClient(client)
+	client.balance.latencySupported = true
+	command, err := client.commandClient()
+	if err != nil {
+		t.Fatal(err)
+	}
+	observed := false
+	command.AddHook(latencyContextHook{observe: func(ctx context.Context, cmd redis.Cmder) {
+		args := cmd.Args()
+		if len(args) < 3 || args[2] != "LATENCY" {
+			return
+		}
+		observed = true
+		if _, hasDeadline := ctx.Deadline(); hasDeadline {
+			t.Error("latency report introduced a post-connection deadline")
+		}
+	}})
+	if err := client.reportClusterLatency(context.Background(), &clusterLatencyHistory{}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if !observed {
+		t.Fatal("latency report did not reach the command pipeline")
 	}
 }
