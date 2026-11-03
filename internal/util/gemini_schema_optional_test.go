@@ -3,7 +3,7 @@ package util
 import (
 	"testing"
 
-	"github.com/tidwall/gjson"
+	gjson "github.com/MoeForge/moego/ojson"
 )
 
 func TestCleanJSONSchemaDropsOptionalAnnotations(t *testing.T) {
