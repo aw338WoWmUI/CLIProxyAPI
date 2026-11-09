@@ -165,7 +165,7 @@ func (e *CodexExecutor) cacheHelperDoc(ctx context.Context, from sdktranslator.F
 		helps.SetStringIfDifferentDoc(doc, "prompt_cache_key", cache.ID)
 	}
 	helps.SanitizeCodexInputItemIDsDoc(doc)
-	helps.FinalizePayloadDoc(ctx, doc)
+	finalizeCodexPayloadDoc(ctx, doc)
 	var rawJSON []byte
 	if doc != nil {
 		rawJSON = doc.Bytes()
@@ -202,6 +202,13 @@ func (e *CodexExecutor) cacheHelperDoc(ctx context.Context, from sdktranslator.F
 		httpReq.Header.Set("Session-Id", cache.ID)
 	}
 	return httpReq, rawJSON, nil
+}
+
+// finalizeCodexPayloadDoc applies built-in inline-image compaction and then
+// the user payload rules. Compaction has to stay before that barrier.
+func finalizeCodexPayloadDoc(ctx context.Context, doc *ojson.Doc) {
+	helps.CompactCodexInlineImagesDoc(doc)
+	helps.FinalizePayloadDoc(ctx, doc)
 }
 
 // alignCodexContentEncoding inspects a replay copy without consuming the live request body.
@@ -469,6 +476,8 @@ func stripCodexSIWCUnsupportedFieldsDoc(doc *ojson.Doc, hasExplicitInstructions 
 	// layer has already resolved it into the top-level effort, so only the
 	// unsupported items are removed in that case.
 	thinking.CollapseConfigurationUpdatesDoc(doc, len(opts) > 0 && opts[0].KeepTopLevelEffort)
+	// SIWC rejects native agent messages; keep their content in portable user messages.
+	helps.NormalizeCodexSIWCAgentMessagesDoc(doc)
 	_ = doc.Delete("prompt_cache_retention")
 	_ = doc.Delete("prompt_cache_options")
 	_ = doc.Delete("max_completion_tokens")

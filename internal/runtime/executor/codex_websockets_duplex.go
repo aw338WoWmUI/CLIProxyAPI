@@ -484,9 +484,10 @@ func (e *CodexWebsocketsExecutor) streamCodexDuplex(
 					steerDoc := ojson.NewDoc(steerReq.Payload)
 					if codexUseSIWCForRequest(ctx, auth, steerHeaders) {
 						thinking.StripConfigurationUpdatesDoc(steerDoc)
+						helps.NormalizeCodexSIWCAgentMessagesDoc(steerDoc)
 					}
 					steerCtx := helps.WithPayloadFinalizer(streamCtx, helps.NewPayloadFinalizer(e.cfg, "codex-websockets", thinking.ParseSuffix(req.Model).ModelName, "codex", "", steerReq.Payload, steerReq, steerOpts))
-					helps.FinalizePayloadDoc(steerCtx, steerDoc)
+					finalizeCodexPayloadDoc(steerCtx, steerDoc)
 					_ = steerDoc.Set("type", "response.steer")
 					parent := strings.Clone(steerDoc.Get("previous_response_id").String())
 					steerEventID := strings.Clone(steerDoc.Get("event_id").String())
@@ -510,7 +511,7 @@ func (e *CodexWebsocketsExecutor) streamCodexDuplex(
 					}
 					metadataMu.Unlock()
 					// Control frames bypass response.create translations and built-in defaults.
-					// Except for SIWC configuration_update stripping, unknown fields and unsupported
+					// Except for SIWC input compatibility, unknown fields and unsupported
 					// input are left to upstream validation.
 					if !cliproxyexecutor.WebsocketAuthEnabled(streamCtx, auth.ID) {
 						fail(fmt.Errorf("websocket credential is no longer enabled"))

@@ -1328,6 +1328,7 @@ func assertCodexRefreshPatch(t *testing.T, before, refreshed *cliproxyauth.Auth,
 
 func TestCodexExecutorCodexClientIgnoresUseSIWC(t *testing.T) {
 	codexUserAgents := []string{
+		"T3 Code/0.166.0 (Mac OS 27.2.0; arm64) dumb (T3 Code; 0.1.7)",
 		"codex-desktop/0.159.0 (Mac OS 26.5.2; arm64)",
 		"Codex Desktop/26.803.41515",
 		"codex-rs/0.154.0 (Mac OS 26.5.2; arm64)",

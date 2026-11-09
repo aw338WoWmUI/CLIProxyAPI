@@ -978,7 +978,8 @@ func IsCodexClientUserAgent(userAgent string) bool {
 	if ua == "" {
 		return false
 	}
-	return strings.Contains(ua, "codex-desktop") ||
+	return strings.HasPrefix(ua, "t3 code/") ||
+		strings.Contains(ua, "codex-desktop") ||
 		strings.Contains(ua, "codex desktop") ||
 		strings.Contains(ua, "codex-rs") ||
 		strings.Contains(ua, "codex_cli_rs") ||
