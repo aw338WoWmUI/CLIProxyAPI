@@ -345,21 +345,30 @@ func startDualCodexAndSIWCMockOAuthServer(t *testing.T, idToken string, failSIWC
 				http.Error(w, errDial.Error(), http.StatusServiceUnavailable)
 				return
 			}
-			w.WriteHeader(http.StatusOK)
 			hijacker, ok := w.(http.Hijacker)
 			if !ok {
 				_ = destConn.Close()
 				return
 			}
-			clientConn, _, errHijack := hijacker.Hijack()
+			clientConn, buffered, errHijack := hijacker.Hijack()
 			if errHijack != nil {
+				_ = destConn.Close()
+				return
+			}
+			if _, errWrite := buffered.WriteString("HTTP/1.1 200 Connection Established\r\n\r\n"); errWrite != nil {
+				_ = clientConn.Close()
+				_ = destConn.Close()
+				return
+			}
+			if errFlush := buffered.Flush(); errFlush != nil {
+				_ = clientConn.Close()
 				_ = destConn.Close()
 				return
 			}
 			go func() {
 				defer func() { _ = destConn.Close() }()
 				defer func() { _ = clientConn.Close() }()
-				_, _ = io.Copy(destConn, clientConn)
+				_, _ = io.Copy(destConn, buffered)
 			}()
 			go func() {
 				defer func() { _ = destConn.Close() }()
