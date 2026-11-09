@@ -248,7 +248,7 @@ func TestCodexDuplexSIWCSteerStripsConfigurationUpdates(t *testing.T) {
 			event := ojson.GetBytes(chunk.Payload, "type").String()
 			id := ojson.GetBytes(chunk.Payload, "response.id").String()
 			if event == "response.created" && id == "r1" {
-				input <- core.WebsocketInput{Payload: []byte(`{"type":"response.steer","previous_response_id":"r1","input":[{"type":"configuration_update","reasoning":{"effort":"high"}},{"role":"user","content":[{"type":"input_text","text":"STEER_OK"}]}]}`)}
+				input <- core.WebsocketInput{Payload: []byte(`{"type":"response.steer","previous_response_id":"r1","input":[{"type":"configuration_update","reasoning":{"effort":"high"}},{"type":"agent_message","author":"/root/reviewer","recipient":"/root","content":[{"type":"input_text","text":"STEER_OK"}]}]}`)}
 			}
 			completed = event == "response.completed" && id == "r1"
 		case <-ctx.Done():
@@ -270,7 +270,7 @@ func TestCodexDuplexSIWCSteerStripsConfigurationUpdates(t *testing.T) {
 			t.Fatalf("steer routing changed: %s", got)
 		}
 		items := ojson.GetBytes(got, "input").Array()
-		if len(items) != 1 || items[0].Get("role").String() != "user" || items[0].Get("content.0.text").String() != "STEER_OK" {
+		if len(items) != 1 || items[0].Get("type").String() != "message" || items[0].Get("author").Exists() || items[0].Get("recipient").Exists() || items[0].Get("role").String() != "user" || items[0].Get("content.0.text").String() != "STEER_OK" {
 			t.Fatalf("steer input must contain only the user message: %s", got)
 		}
 		if ojson.GetBytes(got, "reasoning").Exists() {

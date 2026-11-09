@@ -50,7 +50,7 @@ func (e *CodexExecutor) CountTokens(ctx context.Context, auth *cliproxyauth.Auth
 	normalizeCodexInstructionsDoc(doc, helps.IsNativeCodexRequest(req.Payload, opts))
 
 	ctx = helps.WithPayloadFinalizer(ctx, helps.NewPayloadFinalizer(e.cfg, e.Identifier(), baseModel, to.String(), "", originalTranslatedForPayload, req, opts))
-	helps.FinalizePayloadDoc(ctx, doc)
+	finalizeCodexPayloadDoc(ctx, doc)
 	body = doc.Bytes()
 	enc, err := tokenizerForCodexModel(baseModel)
 	if err != nil {

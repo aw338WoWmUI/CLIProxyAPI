@@ -135,7 +135,7 @@ func codexSIWCAuthForUpdateTest(baseURL string) *cliproxyauth.Auth {
 
 const codexSIWCUpdatePromptCacheKey = "siwc-update-session"
 
-const codexSIWCUpdatePayload = `{"model":"gpt-6-astra","prompt_cache_key":"` + codexSIWCUpdatePromptCacheKey + `","reasoning":{"effort":"medium","summary":"auto"},"input":[{"type":"configuration_update","reasoning":{"effort":"low"}},{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]},{"type":"configuration_update","reasoning":{"effort":"high"}}]}`
+const codexSIWCUpdatePayload = `{"model":"gpt-6-astra","prompt_cache_key":"` + codexSIWCUpdatePromptCacheKey + `","reasoning":{"effort":"medium","summary":"auto"},"input":[{"type":"agent_message","id":"amsg_test","author":"/root/reviewer","recipient":"/root","content":[{"type":"input_text","text":"Review result: preserve this finding."}],"internal_chat_message_metadata_passthrough":{"turn_id":"turn_test"}},{"type":"configuration_update","reasoning":{"effort":"low"}},{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]},{"type":"configuration_update","reasoning":{"effort":"high"}}]}`
 
 func assertCodexSIWCUpdateStripped(t *testing.T, gotBody []byte, wantEffort string) {
 	t.Helper()
@@ -145,6 +145,18 @@ func assertCodexSIWCUpdateStripped(t *testing.T, gotBody []byte, wantEffort stri
 	for _, item := range ojson.GetBytes(gotBody, "input").Array() {
 		if item.Get("type").String() == "configuration_update" {
 			t.Fatalf("SIWC upstream body still contains configuration_update: %s", gotBody)
+		}
+	}
+	message := ojson.GetBytes(gotBody, "input.0")
+	if message.Get("id").String() != "msg_amsg_test" || message.Get("type").String() != "message" || message.Get("role").String() != "user" {
+		t.Fatalf("SIWC agent message was not converted: %s", message.Raw)
+	}
+	if message.Get("content.0.text").String() != "Review result: preserve this finding." {
+		t.Fatalf("SIWC conversion lost agent content: %s", message.Raw)
+	}
+	for _, field := range []string{"author", "recipient", "internal_chat_message_metadata_passthrough"} {
+		if message.Get(field).Exists() {
+			t.Fatalf("SIWC message retained unsupported %s", field)
 		}
 	}
 	if effort := ojson.GetBytes(gotBody, "reasoning.effort").String(); effort != wantEffort {
@@ -366,6 +378,9 @@ func TestCodexExecutorWithoutSIWCKeepsConfigurationUpdates(t *testing.T) {
 		t.Fatalf("Execute error: %v", err)
 	}
 
+	if message := ojson.GetBytes(gotBody, "input.0"); message.Get("type").String() != "agent_message" || message.Get("author").String() != "/root/reviewer" {
+		t.Fatalf("non-SIWC upstream agent message changed: %s", message.Raw)
+	}
 	updates := 0
 	for _, item := range ojson.GetBytes(gotBody, "input").Array() {
 		if item.Get("type").String() == "configuration_update" {
