@@ -122,3 +122,15 @@ func TestCompactCodexInlineImagesNilAndEmpty(t *testing.T) {
 		t.Fatalf("empty input omitted %d", got)
 	}
 }
+
+func TestCompactCodexInlineImagesKeepsRoleOnlyCurrentTurn(t *testing.T) {
+	raw := []byte(`{"input":[{"role":"user","content":[` + strings.Join([]string{
+		testImagePart(largeTestDataURL("FIRST")),
+		testImagePart(largeTestDataURL("SECOND")),
+		testImagePart(largeTestDataURL("THIRD")),
+	}, ",") + `]}]}`)
+	doc := ojson.NewDoc(append([]byte(nil), raw...))
+	if got := CompactCodexInlineImagesDoc(doc); got != 0 || string(doc.Bytes()) != string(raw) {
+		t.Fatalf("role-only current message changed; omitted=%d", got)
+	}
+}

@@ -48,7 +48,7 @@ func CompactCodexInlineImagesDoc(doc *ojson.Doc) int {
 	items := input.Array()
 	lastUser := -1
 	for index, item := range items {
-		if item.Get("type").String() == "message" && strings.EqualFold(item.Get("role").String(), "user") {
+		if kind := item.Get("type").String(); (kind == "" || kind == "message") && strings.EqualFold(item.Get("role").String(), "user") {
 			lastUser = index
 		}
 	}
