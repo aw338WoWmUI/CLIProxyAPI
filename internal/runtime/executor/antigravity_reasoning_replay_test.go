@@ -2303,3 +2303,40 @@ func TestCountTokensReasoningReplayPeeksWithoutReservingTombstone(t *testing.T) 
 		t.Fatalf("GetAntigravityReasoningReplayItems after countTokens peek = %v, ok=%v", got, ok)
 	}
 }
+
+func TestCountTokensReasoningReplayRejectsMismatchedCachedCall(t *testing.T) {
+	internalcache.ClearAntigravityReasoningReplayCache()
+	t.Cleanup(internalcache.ClearAntigravityReasoningReplayCache)
+
+	const model = "gemini-3.6-flash-high"
+	const args = `{"file_path":"/tmp/a"}`
+	payload := []byte(`{"sessionId":"sess-pairing-break","request":{"contents":[{"role":"model","parts":[{"thoughtSignature":"skip_thought_signature_validator","functionCall":{"name":"Read","args":` + args + `}}]},{"role":"user","parts":[{"functionResponse":{"name":"Read","response":{"result":"ok"}}}]}]}}`)
+	payload = normalizeAntigravityGeminiFunctionResponseRoles(payload)
+	if err := internalsignature.ValidateGeminiFunctionCallPairing(payload); err != nil {
+		t.Fatalf("original payload pairing invalid: %v", err)
+	}
+
+	item := []byte(`{"type":"function_call_part","contentIndex":0,"partIndex":0,"targetOccurrence":0,"name":"Write","args":` + args + `,"thoughtSignature":"EsMTCsATARFNMg/XNVix5lDpkKaHR7Xg"}`)
+	opts := cliproxyexecutor.Options{SourceFormat: sdktranslator.FormatOpenAIResponse}
+	req := cliproxyexecutor.Request{Model: model, Payload: payload}
+	doc := ojson.NewDoc(append([]byte(nil), payload...))
+	sessionKey := antigravityReasoningReplayScopeFromRequestDoc(context.Background(), model, req, opts, doc).sessionKey
+	if !internalcache.CacheAntigravityReasoningReplayItems(model, sessionKey, [][]byte{item}) {
+		t.Fatal("failed to cache replay item")
+	}
+	before, found := internalcache.GetAntigravityReasoningReplayItems(model, sessionKey)
+	if !found || len(before) != 1 {
+		t.Fatal("replay fixture was not cached")
+	}
+	_, errPrepare := prepareAntigravityGeminiCountTokensReasoningReplayPayloadDoc(context.Background(), model, req, opts, doc)
+	if errPrepare != nil {
+		t.Fatalf("read-only replay did not degrade: %v", errPrepare)
+	}
+	if !bytes.Equal(doc.Bytes(), payload) {
+		t.Fatalf("payload was not restored: %s", doc.Bytes())
+	}
+	cached, ok := internalcache.GetAntigravityReasoningReplayItems(model, sessionKey)
+	if !ok || len(cached) != 1 || !bytes.Equal(cached[0], before[0]) {
+		t.Fatal("token counting mutated the replay cache")
+	}
+}

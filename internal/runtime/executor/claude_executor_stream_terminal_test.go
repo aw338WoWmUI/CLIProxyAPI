@@ -387,3 +387,46 @@ func (b *postMessageStopReadReleaseBody) Read(p []byte) (int, error) {
 	b.read += n
 	return n, err
 }
+
+func TestClaudeTranslatedStreamClosesWithoutTerminalSeparator(t *testing.T) {
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(w, "event: message_start\n"+`data: {"type":"message_start","message":{"id":"msg_stall","type":"message","role":"assistant","content":[],"model":"claude-opus-5","usage":{"input_tokens":1,"output_tokens":0}}}`+"\n\n"+"event: message_stop\n"+`data: {"type":"message_stop"}`+"\n")
+		w.(http.Flusher).Flush()
+		select {
+		case <-release:
+		case <-r.Context().Done():
+		}
+	}))
+	defer func() { close(release); server.Close() }()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	exec := NewClaudeExecutor(&config.Config{})
+	auth := &cliproxyauth.Auth{Attributes: map[string]string{"api_key": "test", "base_url": server.URL}}
+	payload := []byte(`{"model":"claude-opus-5","input":[{"role":"user","content":"hi"}],"stream":true}`)
+	result, err := exec.ExecuteStream(ctx, auth, cliproxyexecutor.Request{Model: "claude-opus-5", Payload: payload}, cliproxyexecutor.Options{SourceFormat: sdktranslator.FormatOpenAIResponse, ResponseFormat: sdktranslator.FormatOpenAIResponse})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.NewTimer(time.Second)
+	defer deadline.Stop()
+	completed := false
+	for {
+		select {
+		case chunk, ok := <-result.Chunks:
+			if !ok {
+				if !completed {
+					t.Fatal("closed without completion")
+				}
+				return
+			}
+			if chunk.Err != nil {
+				t.Fatal(chunk.Err)
+			}
+			completed = completed || strings.Contains(string(chunk.Payload), "response.completed")
+		case <-deadline.C:
+			t.Fatal("stream blocked after message_stop without separator")
+		}
+	}
+}

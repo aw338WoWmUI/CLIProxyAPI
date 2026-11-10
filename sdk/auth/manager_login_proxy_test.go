@@ -125,3 +125,26 @@ func TestManagerLoginRejectsInvalidProxy(t *testing.T) {
 		t.Fatalf("authenticator ran despite invalid proxy")
 	}
 }
+
+func TestManagerLoginWithoutStoreKeepsLoginProxy(t *testing.T) {
+	for _, proxyURL := range []string{"", "http://127.0.0.1:8080"} {
+		t.Run(proxyURL, func(t *testing.T) {
+			authenticator := &proxyCapturingAuthenticator{provider: "demo", record: &coreauth.Auth{ID: "test", Provider: "demo"}}
+			mgr := NewManager(nil, authenticator)
+			cfg := &config.Config{SDKConfig: config.SDKConfig{ProxyURL: "http://global.example:8080"}}
+			record, path, err := mgr.Login(context.Background(), "demo", cfg, &LoginOptions{ProxyURL: proxyURL})
+			if err != nil || path != "" {
+				t.Fatalf("Login: path=%q err=%v", path, err)
+			}
+			if record.ProxyURL != proxyURL {
+				t.Fatalf("proxy = %q, want %q", record.ProxyURL, proxyURL)
+			}
+			if proxyURL != "" && record.Metadata["proxy_url"] != proxyURL {
+				t.Fatal("proxy metadata missing")
+			}
+			if cfg.ProxyURL != "http://global.example:8080" {
+				t.Fatal("caller config mutated")
+			}
+		})
+	}
+}

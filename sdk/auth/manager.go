@@ -77,6 +77,7 @@ func (m *Manager) Login(ctx context.Context, provider string, cfg *config.Config
 	}
 
 	if m.store == nil {
+		applyLoginProxyToRecord(record, loginProxyURL)
 		return record, "", nil
 	}
 

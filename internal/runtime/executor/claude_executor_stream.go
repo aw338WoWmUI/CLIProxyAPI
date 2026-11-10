@@ -485,6 +485,10 @@ func (e *ClaudeExecutor) ExecuteStream(ctx context.Context, auth *cliproxyauth.A
 				streamUsage.ObserveClaudeSSEEvent(eventBuf.Bytes())
 				eventBuf.Reset()
 			}
+			// Translation can finish on the terminal data line before its separator arrives.
+			if payload := helps.JSONPayload(line); !upstreamCompleted && payload != nil && ojson.ValidBytes(payload) && ojson.GetBytesNoCopy(payload, "type").String() == "message_stop" {
+				upstreamCompleted = true
+			}
 			helps.AppendAPIResponseChunk(ctx, e.cfg, line)
 			reporter.ObserveResponseModel(line)
 			streamUsage.ObserveClaudeStream(line)
