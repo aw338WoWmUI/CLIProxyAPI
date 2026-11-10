@@ -280,7 +280,7 @@ func (r *Registry) TranslateStream(ctx context.Context, from, to Format, model s
 	if stream != nil {
 		usedNativeTransform = true
 		outputs = stream(ctx, model, originalRequestRawJSON, requestRawJSON, body, param)
-	} else if hooks != nil {
+	} else if hooks != nil && from != to {
 		if translated, ok := hooks.TranslateResponse(ctx, from, to, model, originalRequestRawJSON, requestRawJSON, body, true); ok {
 			outputs = [][]byte{translated}
 		}
@@ -316,7 +316,7 @@ func (r *Registry) TranslateNonStream(ctx context.Context, from, to Format, mode
 	}
 	if fn.NonStream != nil {
 		body = fn.NonStream(ctx, model, originalRequestRawJSON, requestRawJSON, body, param)
-	} else if hooks != nil {
+	} else if hooks != nil && from != to {
 		if translated, ok := hooks.TranslateResponse(ctx, from, to, model, originalRequestRawJSON, requestRawJSON, body, false); ok {
 			body = translated
 		}

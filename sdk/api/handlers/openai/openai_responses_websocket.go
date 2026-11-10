@@ -861,7 +861,7 @@ func (h *OpenAIResponsesAPIHandler) ResponsesWebsocket(c *gin.Context) {
 		cliCtx, cliCancel := h.GetContextWithCancel(h, c, executionParent)
 		cliCtx = cliproxyexecutor.WithDownstreamWebsocket(cliCtx)
 		cliCtx = cliproxyexecutor.WithWebsocketInputEpoch(cliCtx, &inputEpoch, msgEpoch)
-		if duplexInput != nil {
+		if duplexInput != nil && !isPluginExecutorRoute {
 			cliCtx = cliproxyexecutor.WithWebsocketInput(cliCtx, duplexInput)
 			cliCtx = cliproxyexecutor.WithWebsocketAuthCheck(cliCtx, func(authID string) bool {
 				current, ok := sessionAuthByID(authID)
@@ -900,7 +900,11 @@ func (h *OpenAIResponsesAPIHandler) ResponsesWebsocket(c *gin.Context) {
 			if !ok || selectedAuth == nil {
 				return
 			}
-			attemptedUpstreamMode = upstreamModeForAuth(selectedAuth)
+			// Plugin streams end per turn even when a nested provider uses a websocket.
+			attemptedUpstreamMode = responsesWebsocketUpstreamModeHTTP
+			if !isPluginExecutorRoute {
+				attemptedUpstreamMode = upstreamModeForAuth(selectedAuth)
+			}
 			codexDuplexStream.Store(duplexInput != nil && attemptedUpstreamMode == responsesWebsocketUpstreamModeWS && strings.EqualFold(strings.TrimSpace(selectedAuth.Provider), "codex"))
 			preserveNativeOutput.Store(nativeRequest && strings.EqualFold(strings.TrimSpace(selectedAuth.Provider), "codex"))
 		})
