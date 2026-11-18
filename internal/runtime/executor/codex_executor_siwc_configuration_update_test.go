@@ -147,6 +147,14 @@ func assertCodexSIWCUpdateStripped(t *testing.T, gotBody []byte, wantEffort stri
 			t.Fatalf("SIWC upstream body still contains configuration_update: %s", gotBody)
 		}
 	}
+	if effort := ojson.GetBytes(gotBody, "reasoning.effort").String(); effort != wantEffort {
+		t.Fatalf("SIWC upstream reasoning.effort = %q, want %q; body=%s", effort, wantEffort, gotBody)
+	}
+}
+
+func assertCodexSIWCUpdateAndAgentMessage(t *testing.T, gotBody []byte, wantEffort string) {
+	t.Helper()
+	assertCodexSIWCUpdateStripped(t, gotBody, wantEffort)
 	message := ojson.GetBytes(gotBody, "input.0")
 	if message.Get("id").String() != "msg_amsg_test" || message.Get("type").String() != "message" || message.Get("role").String() != "user" {
 		t.Fatalf("SIWC agent message was not converted: %s", message.Raw)
@@ -158,9 +166,6 @@ func assertCodexSIWCUpdateStripped(t *testing.T, gotBody []byte, wantEffort stri
 		if message.Get(field).Exists() {
 			t.Fatalf("SIWC message retained unsupported %s", field)
 		}
-	}
-	if effort := ojson.GetBytes(gotBody, "reasoning.effort").String(); effort != wantEffort {
-		t.Fatalf("SIWC upstream reasoning.effort = %q, want %q; body=%s", effort, wantEffort, gotBody)
 	}
 }
 
@@ -204,7 +209,7 @@ func TestCodexExecutorUseSIWCStripsConfigurationUpdatesBeforePayloadFinalizer(t 
 			if err != nil {
 				t.Fatalf("Execute error: %v", err)
 			}
-			assertCodexSIWCUpdateStripped(t, gotBody, tc.wantEffort)
+			assertCodexSIWCUpdateAndAgentMessage(t, gotBody, tc.wantEffort)
 		})
 	}
 }
@@ -230,7 +235,7 @@ func TestCodexExecutorCompactUseSIWCStripsConfigurationUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Execute compact error: %v", err)
 	}
-	assertCodexSIWCUpdateStripped(t, gotBody, "high")
+	assertCodexSIWCUpdateAndAgentMessage(t, gotBody, "high")
 }
 
 func TestCodexWebsocketsExecuteUseSIWCStripsConfigurationUpdates(t *testing.T) {
@@ -267,7 +272,7 @@ func TestCodexWebsocketsExecuteUseSIWCStripsConfigurationUpdates(t *testing.T) {
 
 	select {
 	case gotBody := <-captured:
-		assertCodexSIWCUpdateStripped(t, gotBody, "high")
+		assertCodexSIWCUpdateAndAgentMessage(t, gotBody, "high")
 		if cacheKey := ojson.GetBytes(gotBody, "prompt_cache_key").String(); cacheKey != codexSIWCUpdatePromptCacheKey {
 			t.Fatalf("prompt_cache_key = %q, want %q; body=%s", cacheKey, codexSIWCUpdatePromptCacheKey, gotBody)
 		}
@@ -297,7 +302,7 @@ func TestCodexExecutorUseSIWCKeepsSuffixEffortOverConfigurationUpdate(t *testing
 	if err != nil {
 		t.Fatalf("Execute error: %v", err)
 	}
-	assertCodexSIWCUpdateStripped(t, gotBody, "xhigh")
+	assertCodexSIWCUpdateAndAgentMessage(t, gotBody, "xhigh")
 }
 
 func TestCodexExecutorExecuteStreamUseSIWCStripsConfigurationUpdates(t *testing.T) {
@@ -323,7 +328,7 @@ func TestCodexExecutorExecuteStreamUseSIWCStripsConfigurationUpdates(t *testing.
 			t.Errorf("stream chunk error: %v", chunk.Err)
 		}
 	}
-	assertCodexSIWCUpdateStripped(t, <-captured, "high")
+	assertCodexSIWCUpdateAndAgentMessage(t, <-captured, "high")
 }
 
 func TestCodexWebsocketsPrepareStreamUseSIWCKeepsSuffixEffort(t *testing.T) {
@@ -335,7 +340,7 @@ func TestCodexWebsocketsPrepareStreamUseSIWCKeepsSuffixEffort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("prepareCodexWebsocketStream error: %v", err)
 	}
-	assertCodexSIWCUpdateStripped(t, prepared.clientBody, "xhigh")
+	assertCodexSIWCUpdateAndAgentMessage(t, prepared.clientBody, "xhigh")
 }
 
 func TestCodexExecutorUseSIWCInvalidSuffixPromotesConfigurationUpdate(t *testing.T) {
@@ -356,7 +361,7 @@ func TestCodexExecutorUseSIWCInvalidSuffixPromotesConfigurationUpdate(t *testing
 	if err != nil {
 		t.Fatalf("Execute error: %v", err)
 	}
-	assertCodexSIWCUpdateStripped(t, gotBody, "high")
+	assertCodexSIWCUpdateAndAgentMessage(t, gotBody, "high")
 }
 
 func TestCodexExecutorWithoutSIWCKeepsConfigurationUpdates(t *testing.T) {
